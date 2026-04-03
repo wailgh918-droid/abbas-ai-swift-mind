@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -37,7 +37,7 @@ const ChatInput = ({ onSend, disabled, initialValue = "" }: ChatInputProps) => {
   };
 
   return (
-    <div className="flex items-end gap-2 p-3 border border-border rounded-2xl bg-card transition-all focus-within:border-primary/50 focus-within:wolf-glow">
+    <div className="flex items-end gap-2 p-3 border border-border rounded-2xl bg-card shadow-sm transition-all focus-within:border-primary/40 focus-within:shadow-md">
       <textarea
         ref={textareaRef}
         value={value}
@@ -52,9 +52,9 @@ const ChatInput = ({ onSend, disabled, initialValue = "" }: ChatInputProps) => {
       <button
         onClick={handleSubmit}
         disabled={disabled || !value.trim()}
-        className="shrink-0 p-2.5 rounded-xl bg-primary text-primary-foreground transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
+        className="shrink-0 p-2 rounded-full bg-foreground text-background transition-all hover:opacity-80 disabled:opacity-20 disabled:cursor-not-allowed"
       >
-        <Send className="w-4 h-4" />
+        <ArrowUp className="w-4 h-4" />
       </button>
     </div>
   );

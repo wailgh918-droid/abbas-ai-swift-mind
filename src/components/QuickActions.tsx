@@ -14,15 +14,15 @@ const actions = [
 ];
 
 const QuickActions = ({ onSelect }: QuickActionsProps) => (
-  <div className="flex flex-wrap justify-center gap-2">
+  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg">
     {actions.map((action) => (
       <button
         key={action.label}
         onClick={() => onSelect(action.prompt)}
-        className="quick-action-btn"
+        className="flex flex-col items-center gap-2 px-4 py-4 rounded-xl border border-border bg-background/80 backdrop-blur-sm text-sm font-medium transition-all duration-200 hover:border-primary/40 hover:shadow-md cursor-pointer"
       >
-        <action.icon className="w-4 h-4 text-primary" />
-        <span>{action.label}</span>
+        <action.icon className="w-5 h-5 text-primary" />
+        <span className="text-foreground">{action.label}</span>
       </button>
     ))}
   </div>
