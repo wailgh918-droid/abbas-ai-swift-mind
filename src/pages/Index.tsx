@@ -1,30 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Menu } from "lucide-react";
+import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
 import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
 import ChatMessage, { type Message } from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import QuickActions from "@/components/QuickActions";
 import TypingIndicator from "@/components/TypingIndicator";
-
-const DEMO_CONVERSATIONS: Conversation[] = [
-  { id: "1", title: "مساعدة في كتابة تقرير", date: "اليوم" },
-  { id: "2", title: "ترجمة مقال تقني", date: "اليوم" },
-  { id: "3", title: "أفكار لمشروع جديد", date: "أمس" },
-];
-
-// Simulated AI response for demo purposes
-const simulateResponse = (userMessage: string): string => {
-  if (userMessage.includes("تلخيص")) return "بالتأكيد! أرسل لي النص وسألخصه لك بشكل واضح ومختصر. 📝";
-  if (userMessage.includes("ترجمة") || userMessage.includes("ترجم")) return "جاهز للترجمة! أرسل لي النص المراد ترجمته وحدد اللغة المطلوبة. 🌍";
-  if (userMessage.includes("إيميل")) return "سأساعدك في كتابة إيميل احترافي. ما هو الموضوع والنبرة المطلوبة؟ ✉️";
-  if (userMessage.includes("كود") || userMessage.includes("برمج")) return "ممتاز! أخبرني بلغة البرمجة والمشكلة التي تريد حلها وسأساعدك فوراً. 💻";
-  return "أهلاً بك! أنا **عباس**، مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟ يمكنني:\n\n- ✍️ كتابة وتحسين النصوص\n- 🌐 الترجمة بين اللغات\n- 💡 توليد أفكار إبداعية\n- 💻 المساعدة البرمجية\n\nما الذي تحتاجه؟";
-};
+import { streamChat } from "@/lib/streamChat";
 
 const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [conversations] = useState<Conversation[]>(DEMO_CONVERSATIONS);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -39,39 +26,56 @@ const Index = () => {
     scrollToBottom();
   }, [messages, isTyping, scrollToBottom]);
 
-  const handleSend = useCallback((text: string) => {
+  const handleSend = useCallback(async (text: string) => {
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
     setQuickActionPrompt("");
 
-    // Simulate streaming delay
-    setTimeout(() => {
-      const response = simulateResponse(text);
-      let displayed = "";
-      const words = response.split(" ");
-      let i = 0;
+    const assistantId = (Date.now() + 1).toString();
+    let assistantContent = "";
 
-      const assistantId = (Date.now() + 1).toString();
+    // Build message history for context
+    const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }));
 
-      const interval = setInterval(() => {
-        if (i < words.length) {
-          displayed += (i > 0 ? " " : "") + words[i];
-          i++;
+    try {
+      await streamChat({
+        messages: history,
+        onDelta: (chunk) => {
+          assistantContent += chunk;
+          const current = assistantContent;
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last?.role === "assistant" && last.id === assistantId) {
-              return prev.map((m) => m.id === assistantId ? { ...m, content: displayed } : m);
+              return prev.map((m) => m.id === assistantId ? { ...m, content: current } : m);
             }
-            return [...prev, { id: assistantId, role: "assistant", content: displayed }];
+            return [...prev, { id: assistantId, role: "assistant", content: current }];
           });
-        } else {
-          clearInterval(interval);
+        },
+        onDone: () => {
           setIsTyping(false);
-        }
-      }, 40);
-    }, 600);
-  }, []);
+          // Add to conversation list if new
+          if (!activeConvId && assistantContent) {
+            const newConv: Conversation = {
+              id: assistantId,
+              title: text.slice(0, 40) + (text.length > 40 ? "..." : ""),
+              date: "اليوم",
+            };
+            setConversations((prev) => [newConv, ...prev]);
+            setActiveConvId(assistantId);
+          }
+        },
+        onError: (error) => {
+          setIsTyping(false);
+          toast.error(error);
+        },
+      });
+    } catch (e) {
+      setIsTyping(false);
+      toast.error("فشل الاتصال بالخادم. حاول مرة أخرى.");
+      console.error(e);
+    }
+  }, [messages, activeConvId]);
 
   const handleNewChat = useCallback(() => {
     setActiveConvId(null);
@@ -83,7 +87,6 @@ const Index = () => {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* Sidebar */}
       <ChatSidebar
         conversations={conversations}
         activeId={activeConvId}
@@ -93,9 +96,7 @@ const Index = () => {
         onToggle={() => setSidebarOpen(false)}
       />
 
-      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm">
           {!sidebarOpen && (
             <button
@@ -110,10 +111,8 @@ const Index = () => {
           <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">AI</span>
         </header>
 
-        {/* Messages area */}
         <div className="flex-1 overflow-y-auto">
           {!hasMessages ? (
-            /* Welcome screen */
             <div className="flex flex-col items-center justify-center h-full px-4 animate-fade-in">
               <div className="mb-6">
                 <WolfLogo size={80} className="opacity-80" />
@@ -129,7 +128,7 @@ const Index = () => {
               {messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}
-              {isTyping && (
+              {isTyping && !messages.some(m => m.role === "assistant" && m.id === (Date.now() + 1).toString()) && (
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center shrink-0">
                     <WolfLogo size={20} />
@@ -144,7 +143,6 @@ const Index = () => {
           )}
         </div>
 
-        {/* Input */}
         <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full">
           <ChatInput
             onSend={handleSend}
