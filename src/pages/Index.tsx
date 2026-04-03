@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Menu } from "lucide-react";
+import { Menu, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
 import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
@@ -10,13 +10,18 @@ import TypingIndicator from "@/components/TypingIndicator";
 import { streamChat } from "@/lib/streamChat";
 
 const Index = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [quickActionPrompt, setQuickActionPrompt] = useState("");
+  const [isDark, setIsDark] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+  }, [isDark]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,7 +40,6 @@ const Index = () => {
     const assistantId = (Date.now() + 1).toString();
     let assistantContent = "";
 
-    // Build message history for context
     const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }));
 
     try {
@@ -54,7 +58,6 @@ const Index = () => {
         },
         onDone: () => {
           setIsTyping(false);
-          // Add to conversation list if new
           if (!activeConvId && assistantContent) {
             const newConv: Conversation = {
               id: assistantId,
@@ -86,7 +89,7 @@ const Index = () => {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen overflow-hidden">
       <ChatSidebar
         conversations={conversations}
         activeId={activeConvId}
@@ -96,29 +99,36 @@ const Index = () => {
         onToggle={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm">
-          {!sidebarOpen && (
+      <div className="flex-1 flex flex-col min-w-0 gradient-bg">
+        {/* Header */}
+        <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/60 backdrop-blur-md">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
             >
               <Menu className="w-5 h-5" />
             </button>
-          )}
-          <WolfLogo size={28} />
-          <h1 className="font-semibold text-foreground">عباس</h1>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">AI</span>
+            <WolfLogo size={28} />
+            <h1 className="font-semibold text-foreground">عباس</h1>
+          </div>
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+          >
+            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
         </header>
 
+        {/* Chat area */}
         <div className="flex-1 overflow-y-auto">
           {!hasMessages ? (
             <div className="flex flex-col items-center justify-center h-full px-4 animate-fade-in">
-              <div className="mb-6">
-                <WolfLogo size={80} className="opacity-80" />
+              <div className="mb-8">
+                <WolfLogo size={72} className="opacity-90" />
               </div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">مرحباً، أنا عباس</h2>
-              <p className="text-muted-foreground text-center mb-8 max-w-md">
+              <h2 className="text-3xl font-bold text-foreground mb-3">مرحباً، أنا عباس</h2>
+              <p className="text-muted-foreground text-center mb-10 max-w-md text-base">
                 مساعدك الذكي السريع. اختر إجراءً سريعاً أو اكتب ما تريد.
               </p>
               <QuickActions onSelect={setQuickActionPrompt} />
@@ -143,6 +153,7 @@ const Index = () => {
           )}
         </div>
 
+        {/* Input */}
         <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full">
           <ChatInput
             onSend={handleSend}

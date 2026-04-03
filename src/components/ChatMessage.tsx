@@ -16,11 +16,10 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
 
   return (
     <div className={`flex gap-3 animate-fade-in ${isUser ? "flex-row-reverse" : ""}`}>
-      {/* Avatar */}
       <div className="shrink-0 mt-1">
         {isUser ? (
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-xs font-semibold text-primary-foreground">أنت</span>
+          <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center">
+            <span className="text-xs font-semibold text-background">أنت</span>
           </div>
         ) : (
           <div className="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center">
@@ -29,12 +28,11 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
         )}
       </div>
 
-      {/* Bubble */}
       <div className={`max-w-[75%] ${isUser ? "chat-bubble-user" : "chat-bubble-assistant"}`}>
         {isUser ? (
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <div className="prose prose-sm prose-invert max-w-none text-card-foreground">
+          <div className="prose prose-sm max-w-none text-card-foreground">
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         )}
