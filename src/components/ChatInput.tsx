@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowUp } from "lucide-react";
+import VoiceInput from "./VoiceInput";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -36,8 +37,13 @@ const ChatInput = ({ onSend, disabled, initialValue = "" }: ChatInputProps) => {
     }
   };
 
+  const handleVoice = (transcript: string) => {
+    setValue((prev) => (prev ? prev + " " + transcript : transcript));
+  };
+
   return (
     <div className="flex items-end gap-2 p-3 border border-border rounded-2xl bg-card shadow-sm transition-all focus-within:border-primary/40 focus-within:shadow-md">
+      <VoiceInput onTranscript={handleVoice} disabled={disabled} />
       <textarea
         ref={textareaRef}
         value={value}

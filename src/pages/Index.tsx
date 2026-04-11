@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Menu, Sun, Moon } from "lucide-react";
+import { Menu, Sun, Moon, Zap } from "lucide-react";
 import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
 import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
@@ -7,6 +7,8 @@ import ChatMessage, { type Message } from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import QuickActions from "@/components/QuickActions";
 import TypingIndicator from "@/components/TypingIndicator";
+import TurboMode from "@/components/TurboMode";
+import PredictiveActions from "@/components/PredictiveActions";
 import { streamChat } from "@/lib/streamChat";
 
 const Index = () => {
@@ -17,6 +19,7 @@ const Index = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [quickActionPrompt, setQuickActionPrompt] = useState("");
   const [isDark, setIsDark] = useState(false);
+  const [turboOpen, setTurboOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -112,12 +115,21 @@ const Index = () => {
             <WolfLogo size={28} />
             <h1 className="font-semibold text-foreground">عباس</h1>
           </div>
-          <button
-            onClick={() => setIsDark(!isDark)}
-            className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
-          >
-            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setTurboOpen(true)}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+              title="وضع التوربو"
+            >
+              <Zap className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
         </header>
 
         {/* Chat area */}
@@ -153,8 +165,11 @@ const Index = () => {
           )}
         </div>
 
-        {/* Input */}
-        <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full">
+        {/* Predictive Actions + Input */}
+        <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full space-y-2">
+          {hasMessages && !isTyping && (
+            <PredictiveActions messages={messages} onSelect={(p) => handleSend(p)} />
+          )}
           <ChatInput
             onSend={handleSend}
             disabled={isTyping}
@@ -165,6 +180,17 @@ const Index = () => {
           </p>
         </div>
       </div>
+
+      {/* Turbo Mode Modal */}
+      {turboOpen && (
+        <TurboMode
+          onProcessed={(text) => {
+            setTurboOpen(false);
+            handleSend(text);
+          }}
+          onClose={() => setTurboOpen(false)}
+        />
+      )}
     </div>
   );
 };
