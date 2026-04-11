@@ -27,7 +27,7 @@ interface VoiceInputProps {
 
 const VoiceInput = ({ onTranscript, disabled }: VoiceInputProps) => {
   const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const supported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
   useEffect(() => {
