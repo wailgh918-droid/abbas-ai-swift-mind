@@ -1,10 +1,22 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Mic, MicOff } from "lucide-react";
 
+interface ISpeechRecognition extends EventTarget {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((ev: SpeechRecognitionEvent) => void) | null;
+  onerror: ((ev: Event) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition: new () => ISpeechRecognition;
+    webkitSpeechRecognition: new () => ISpeechRecognition;
   }
 }
 
