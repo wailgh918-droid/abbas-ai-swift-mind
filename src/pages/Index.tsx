@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Menu, Sun, Moon, Zap } from "lucide-react";
+import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target } from "lucide-react";
 import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
 import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
@@ -9,7 +9,14 @@ import QuickActions from "@/components/QuickActions";
 import TypingIndicator from "@/components/TypingIndicator";
 import TurboMode from "@/components/TurboMode";
 import PredictiveActions from "@/components/PredictiveActions";
+import OCRScanner from "@/components/OCRScanner";
+import ImageGenerator from "@/components/ImageGenerator";
+import PackRanks, { addPoints } from "@/components/PackRanks";
+import StrategicPlanner from "@/components/StrategicPlanner";
+import WolfVault from "@/components/WolfVault";
 import { streamChat } from "@/lib/streamChat";
+
+type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | null;
 
 const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -18,8 +25,8 @@ const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [quickActionPrompt, setQuickActionPrompt] = useState("");
-  const [isDark, setIsDark] = useState(false);
-  const [turboOpen, setTurboOpen] = useState(false);
+  const [isDark, setIsDark] = useState(true);
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,6 +46,7 @@ const Index = () => {
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
     setQuickActionPrompt("");
+    addPoints("message");
 
     const assistantId = (Date.now() + 1).toString();
     let assistantContent = "";
@@ -91,6 +99,15 @@ const Index = () => {
 
   const hasMessages = messages.length > 0;
 
+  const toolButtons = [
+    { key: "turbo" as const, icon: Zap, label: "التوربو" },
+    { key: "ocr" as const, icon: Camera, label: "الماسح" },
+    { key: "image" as const, icon: Palette, label: "الصور" },
+    { key: "planner" as const, icon: Target, label: "المخطط" },
+    { key: "vault" as const, icon: Shield, label: "الخزنة" },
+    { key: "ranks" as const, icon: Trophy, label: "الرتب" },
+  ];
+
   return (
     <div className="flex h-screen overflow-hidden">
       <ChatSidebar
@@ -102,9 +119,9 @@ const Index = () => {
         onToggle={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 gradient-bg">
+      <div className={`flex-1 flex flex-col min-w-0 gradient-bg ${isDark ? "wolf-eyes-effect" : ""}`}>
         {/* Header */}
-        <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/60 backdrop-blur-md">
+        <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/60 backdrop-blur-md relative z-10">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -116,24 +133,28 @@ const Index = () => {
             <h1 className="font-semibold text-foreground">عباس</h1>
           </div>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setTurboOpen(true)}
-              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
-              title="وضع التوربو"
-            >
-              <Zap className="w-5 h-5" />
-            </button>
+            {toolButtons.map((btn) => (
+              <button
+                key={btn.key}
+                onClick={() => setActiveModal(btn.key)}
+                className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+                title={btn.label}
+              >
+                <btn.icon className="w-4 h-4" />
+              </button>
+            ))}
             <button
               onClick={() => setIsDark(!isDark)}
               className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+              title={isDark ? "الوضع الفاتح" : "وضع الذئب الليلي"}
             >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
           </div>
         </header>
 
         {/* Chat area */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto relative z-10">
           {!hasMessages ? (
             <div className="flex flex-col items-center justify-center h-full px-4 animate-fade-in">
               <div className="mb-8">
@@ -166,7 +187,7 @@ const Index = () => {
         </div>
 
         {/* Predictive Actions + Input */}
-        <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full space-y-2">
+        <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full space-y-2 relative z-10">
           {hasMessages && !isTyping && (
             <PredictiveActions messages={messages} onSelect={(p) => handleSend(p)} />
           )}
@@ -181,15 +202,33 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Turbo Mode Modal */}
-      {turboOpen && (
+      {/* Modals */}
+      {activeModal === "turbo" && (
         <TurboMode
-          onProcessed={(text) => {
-            setTurboOpen(false);
-            handleSend(text);
-          }}
-          onClose={() => setTurboOpen(false)}
+          onProcessed={(text) => { setActiveModal(null); addPoints("turbo"); handleSend(text); }}
+          onClose={() => setActiveModal(null)}
         />
+      )}
+      {activeModal === "ocr" && (
+        <OCRScanner
+          onResult={(text) => { setActiveModal(null); addPoints("ocr"); handleSend(text); }}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+      {activeModal === "image" && (
+        <ImageGenerator onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === "ranks" && (
+        <PackRanks onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === "planner" && (
+        <StrategicPlanner
+          onClose={() => setActiveModal(null)}
+          onSendToChat={(text) => { setActiveModal(null); handleSend(text); }}
+        />
+      )}
+      {activeModal === "vault" && (
+        <WolfVault onClose={() => setActiveModal(null)} />
       )}
     </div>
   );
