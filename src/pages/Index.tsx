@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
-import ChatSidebar from "@/components/ChatSidebar";
 import ChatMessage, { type Message } from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import QuickActions from "@/components/QuickActions";
@@ -14,15 +12,14 @@ import ImageGenerator from "@/components/ImageGenerator";
 import PackRanks from "@/components/PackRanks";
 import StrategicPlanner from "@/components/StrategicPlanner";
 import WolfVault from "@/components/WolfVault";
+import AppSidebar from "@/components/AppSidebar";
 import { streamChat } from "@/lib/streamChat";
-import { useAuth } from "@/hooks/useAuth";
 import { useConversations } from "@/hooks/useConversations";
 import { useRanks } from "@/hooks/useRanks";
 
 type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | null;
 
 const Index = () => {
-  const { signOut } = useAuth();
   const {
     conversations,
     activeConvId,
@@ -35,7 +32,6 @@ const Index = () => {
   } = useConversations();
   const { rankData, addPoints } = useRanks();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [quickActionPrompt, setQuickActionPrompt] = useState("");
   const [isDark, setIsDark] = useState(true);
@@ -61,19 +57,16 @@ const Index = () => {
     setQuickActionPrompt("");
     addPoints("message");
 
-    // Create conversation if needed
     let convId = activeConvId;
     if (!convId) {
       const title = text.slice(0, 40) + (text.length > 40 ? "..." : "");
       convId = await createConversation(title);
     }
 
-    // Save user message
     if (convId) saveMessage(convId, "user", text);
 
     const assistantId = (Date.now() + 1).toString();
     let assistantContent = "";
-
     const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }));
 
     try {
@@ -92,7 +85,6 @@ const Index = () => {
         },
         onDone: () => {
           setIsTyping(false);
-          // Save assistant message
           if (convId && assistantContent) saveMessage(convId, "assistant", assistantContent);
         },
         onError: (error) => {
@@ -109,75 +101,18 @@ const Index = () => {
 
   const hasMessages = messages.length > 0;
 
-  // Map conversations for sidebar
-  const sidebarConvs = conversations.map((c) => ({
-    id: c.id,
-    title: c.title,
-    date: new Date(c.created_at).toLocaleDateString("ar-SA"),
-  }));
-
-  const toolButtons = [
-    { key: "turbo" as const, icon: Zap, label: "التوربو" },
-    { key: "ocr" as const, icon: Camera, label: "الماسح" },
-    { key: "image" as const, icon: Palette, label: "الصور" },
-    { key: "planner" as const, icon: Target, label: "المخطط" },
-    { key: "vault" as const, icon: Shield, label: "الخزنة" },
-    { key: "ranks" as const, icon: Trophy, label: "الرتب" },
-  ];
-
   return (
-    <div className="flex h-screen overflow-hidden">
-      <ChatSidebar
-        conversations={sidebarConvs}
-        activeId={activeConvId}
-        onSelect={setActiveConvId}
-        onNew={handleNewChat}
-        open={sidebarOpen}
-        onToggle={() => setSidebarOpen(false)}
+    <div className="flex h-screen overflow-hidden" dir="rtl">
+      {/* Sidebar */}
+      <AppSidebar
+        isDark={isDark}
+        onToggleDark={() => setIsDark(!isDark)}
+        onOpenModal={setActiveModal}
+        onNewChat={handleNewChat}
       />
 
+      {/* Main chat area */}
       <div className={`flex-1 flex flex-col min-w-0 gradient-bg ${isDark ? "wolf-eyes-effect" : ""}`}>
-        {/* Header */}
-        <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/60 backdrop-blur-md relative z-10">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <WolfLogo size={28} />
-            <h1 className="font-semibold text-foreground">عباس</h1>
-          </div>
-          <div className="flex items-center gap-1">
-            {toolButtons.map((btn) => (
-              <button
-                key={btn.key}
-                onClick={() => setActiveModal(btn.key)}
-                className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
-                title={btn.label}
-              >
-                <btn.icon className="w-4 h-4" />
-              </button>
-            ))}
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
-              title={isDark ? "الوضع الفاتح" : "وضع الذئب الليلي"}
-            >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={signOut}
-              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
-              title="تسجيل الخروج"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </header>
-
-        {/* Chat area */}
         <div className="flex-1 overflow-y-auto relative z-10">
           {!hasMessages ? (
             <div className="flex flex-col items-center justify-center h-full px-4 animate-fade-in">
@@ -191,7 +126,7 @@ const Index = () => {
               <QuickActions onSelect={setQuickActionPrompt} />
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+            <div className="max-w-3xl mx-auto px-4 py-6 space-y-6" dir="auto">
               {messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}
@@ -210,16 +145,12 @@ const Index = () => {
           )}
         </div>
 
-        {/* Predictive Actions + Input */}
-        <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full space-y-2 relative z-10">
+        {/* Input */}
+        <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full space-y-2 relative z-10" dir="rtl">
           {hasMessages && !isTyping && (
             <PredictiveActions messages={messages} onSelect={(p) => handleSend(p)} />
           )}
-          <ChatInput
-            onSend={handleSend}
-            disabled={isTyping}
-            initialValue={quickActionPrompt}
-          />
+          <ChatInput onSend={handleSend} disabled={isTyping} initialValue={quickActionPrompt} />
           <p className="text-xs text-muted-foreground text-center mt-2">
             عباس قد يُخطئ أحياناً. تحقق من المعلومات المهمة.
           </p>
@@ -239,21 +170,15 @@ const Index = () => {
           onClose={() => setActiveModal(null)}
         />
       )}
-      {activeModal === "image" && (
-        <ImageGenerator onClose={() => setActiveModal(null)} />
-      )}
-      {activeModal === "ranks" && (
-        <PackRanks rankData={rankData} onClose={() => setActiveModal(null)} />
-      )}
+      {activeModal === "image" && <ImageGenerator onClose={() => setActiveModal(null)} />}
+      {activeModal === "ranks" && <PackRanks rankData={rankData} onClose={() => setActiveModal(null)} />}
       {activeModal === "planner" && (
         <StrategicPlanner
           onClose={() => setActiveModal(null)}
           onSendToChat={(text) => { setActiveModal(null); handleSend(text); }}
         />
       )}
-      {activeModal === "vault" && (
-        <WolfVault onClose={() => setActiveModal(null)} />
-      )}
+      {activeModal === "vault" && <WolfVault onClose={() => setActiveModal(null)} />}
     </div>
   );
 };
