@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target } from "lucide-react";
+import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
-import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
+import ChatSidebar from "@/components/ChatSidebar";
 import ChatMessage, { type Message } from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import QuickActions from "@/components/QuickActions";
@@ -11,18 +11,31 @@ import TurboMode from "@/components/TurboMode";
 import PredictiveActions from "@/components/PredictiveActions";
 import OCRScanner from "@/components/OCRScanner";
 import ImageGenerator from "@/components/ImageGenerator";
-import PackRanks, { addPoints } from "@/components/PackRanks";
+import PackRanks from "@/components/PackRanks";
 import StrategicPlanner from "@/components/StrategicPlanner";
 import WolfVault from "@/components/WolfVault";
 import { streamChat } from "@/lib/streamChat";
+import { useAuth } from "@/hooks/useAuth";
+import { useConversations } from "@/hooks/useConversations";
+import { useRanks } from "@/hooks/useRanks";
 
 type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | null;
 
 const Index = () => {
+  const { signOut } = useAuth();
+  const {
+    conversations,
+    activeConvId,
+    setActiveConvId,
+    messages,
+    setMessages,
+    createConversation,
+    saveMessage,
+    handleNewChat,
+  } = useConversations();
+  const { rankData, addPoints } = useRanks();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConvId, setActiveConvId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [quickActionPrompt, setQuickActionPrompt] = useState("");
   const [isDark, setIsDark] = useState(true);
@@ -48,6 +61,16 @@ const Index = () => {
     setQuickActionPrompt("");
     addPoints("message");
 
+    // Create conversation if needed
+    let convId = activeConvId;
+    if (!convId) {
+      const title = text.slice(0, 40) + (text.length > 40 ? "..." : "");
+      convId = await createConversation(title);
+    }
+
+    // Save user message
+    if (convId) saveMessage(convId, "user", text);
+
     const assistantId = (Date.now() + 1).toString();
     let assistantContent = "";
 
@@ -69,15 +92,8 @@ const Index = () => {
         },
         onDone: () => {
           setIsTyping(false);
-          if (!activeConvId && assistantContent) {
-            const newConv: Conversation = {
-              id: assistantId,
-              title: text.slice(0, 40) + (text.length > 40 ? "..." : ""),
-              date: "اليوم",
-            };
-            setConversations((prev) => [newConv, ...prev]);
-            setActiveConvId(assistantId);
-          }
+          // Save assistant message
+          if (convId && assistantContent) saveMessage(convId, "assistant", assistantContent);
         },
         onError: (error) => {
           setIsTyping(false);
@@ -89,15 +105,16 @@ const Index = () => {
       toast.error("فشل الاتصال بالخادم. حاول مرة أخرى.");
       console.error(e);
     }
-  }, [messages, activeConvId]);
-
-  const handleNewChat = useCallback(() => {
-    setActiveConvId(null);
-    setMessages([]);
-    setQuickActionPrompt("");
-  }, []);
+  }, [messages, activeConvId, createConversation, saveMessage, addPoints, setMessages]);
 
   const hasMessages = messages.length > 0;
+
+  // Map conversations for sidebar
+  const sidebarConvs = conversations.map((c) => ({
+    id: c.id,
+    title: c.title,
+    date: new Date(c.created_at).toLocaleDateString("ar-SA"),
+  }));
 
   const toolButtons = [
     { key: "turbo" as const, icon: Zap, label: "التوربو" },
@@ -111,7 +128,7 @@ const Index = () => {
   return (
     <div className="flex h-screen overflow-hidden">
       <ChatSidebar
-        conversations={conversations}
+        conversations={sidebarConvs}
         activeId={activeConvId}
         onSelect={setActiveConvId}
         onNew={handleNewChat}
@@ -149,6 +166,13 @@ const Index = () => {
               title={isDark ? "الوضع الفاتح" : "وضع الذئب الليلي"}
             >
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={signOut}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+              title="تسجيل الخروج"
+            >
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </header>
@@ -219,7 +243,7 @@ const Index = () => {
         <ImageGenerator onClose={() => setActiveModal(null)} />
       )}
       {activeModal === "ranks" && (
-        <PackRanks onClose={() => setActiveModal(null)} />
+        <PackRanks rankData={rankData} onClose={() => setActiveModal(null)} />
       )}
       {activeModal === "planner" && (
         <StrategicPlanner
