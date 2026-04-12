@@ -1,17 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
 import { Trophy, X, Star, Flame, Zap } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import type { RankData } from "@/hooks/useRanks";
 
 interface PackRanksProps {
+  rankData: RankData;
   onClose: () => void;
-}
-
-interface RankData {
-  points: number;
-  messagesCount: number;
-  turboUsed: number;
-  ocrUsed: number;
-  imagesGenerated: number;
 }
 
 const RANKS = [
@@ -29,36 +22,9 @@ function getRank(points: number) {
   return { current: RANKS[0], next: RANKS[1], index: 0 };
 }
 
-function loadRankData(): RankData {
-  try {
-    const raw = localStorage.getItem("abbas_rank");
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { points: 0, messagesCount: 0, turboUsed: 0, ocrUsed: 0, imagesGenerated: 0 };
-}
-
-export function addPoints(type: "message" | "turbo" | "ocr" | "image") {
-  const data = loadRankData();
-  const pointsMap = { message: 2, turbo: 5, ocr: 5, image: 10 };
-  data.points += pointsMap[type];
-  if (type === "message") data.messagesCount++;
-  if (type === "turbo") data.turboUsed++;
-  if (type === "ocr") data.ocrUsed++;
-  if (type === "image") data.imagesGenerated++;
-  localStorage.setItem("abbas_rank", JSON.stringify(data));
-  return data;
-}
-
-const PackRanks = ({ onClose }: PackRanksProps) => {
-  const [data, setData] = useState<RankData>(loadRankData);
-
-  useEffect(() => {
-    const interval = setInterval(() => setData(loadRankData()), 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const { current, next } = getRank(data.points);
-  const progress = next ? ((data.points - current.minPoints) / (next.minPoints - current.minPoints)) * 100 : 100;
+const PackRanks = ({ rankData, onClose }: PackRanksProps) => {
+  const { current, next } = getRank(rankData.points);
+  const progress = next ? ((rankData.points - current.minPoints) / (next.minPoints - current.minPoints)) * 100 : 100;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
@@ -77,7 +43,7 @@ const PackRanks = ({ onClose }: PackRanksProps) => {
           <div className="text-center space-y-2">
             <div className="text-4xl">{current.name.split(" ").pop()}</div>
             <h4 className="text-lg font-bold text-foreground">{current.name}</h4>
-            <p className="text-2xl font-bold text-primary">{data.points} نقطة</p>
+            <p className="text-2xl font-bold text-primary">{rankData.points} نقطة</p>
           </div>
 
           {next && (
@@ -87,16 +53,16 @@ const PackRanks = ({ onClose }: PackRanksProps) => {
                 <span>{next.name}</span>
               </div>
               <Progress value={progress} className="h-3 bg-secondary [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-primary/70" />
-              <p className="text-xs text-center text-muted-foreground">{next.minPoints - data.points} نقطة للرتبة التالية</p>
+              <p className="text-xs text-center text-muted-foreground">{next.minPoints - rankData.points} نقطة للرتبة التالية</p>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "الرسائل", value: data.messagesCount, icon: "💬" },
-              { label: "التوربو", value: data.turboUsed, icon: "⚡" },
-              { label: "المسح", value: data.ocrUsed, icon: "📷" },
-              { label: "الصور", value: data.imagesGenerated, icon: "🎨" },
+              { label: "الرسائل", value: rankData.messages_count, icon: "💬" },
+              { label: "التوربو", value: rankData.turbo_used, icon: "⚡" },
+              { label: "المسح", value: rankData.ocr_used, icon: "📷" },
+              { label: "الصور", value: rankData.images_generated, icon: "🎨" },
             ].map((stat) => (
               <div key={stat.label} className="flex items-center gap-2 p-3 rounded-xl bg-background border border-border">
                 <span className="text-lg">{stat.icon}</span>
