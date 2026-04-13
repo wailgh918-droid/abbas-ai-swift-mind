@@ -15,12 +15,13 @@ import WolfVault from "@/components/WolfVault";
 import TheHunt from "@/components/TheHunt";
 import MathAnalyzer from "@/components/MathAnalyzer";
 import GradePredictor from "@/components/GradePredictor";
+import VoiceTutor from "@/components/VoiceTutor";
 import AppSidebar from "@/components/AppSidebar";
 import { streamChat } from "@/lib/streamChat";
 import { useConversations } from "@/hooks/useConversations";
 import { useRanks } from "@/hooks/useRanks";
 
-type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | "hunt" | "mathAnalyzer" | "gradePredictor" | null;
+type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | "hunt" | "mathAnalyzer" | "gradePredictor" | "voiceTutor" | null;
 
 const Index = () => {
   const {
@@ -190,6 +191,7 @@ const Index = () => {
         />
       )}
       {activeModal === "gradePredictor" && <GradePredictor onClose={() => setActiveModal(null)} />}
+      {activeModal === "voiceTutor" && <VoiceTutor onClose={() => setActiveModal(null)} />}
     </div>
   );
 };
