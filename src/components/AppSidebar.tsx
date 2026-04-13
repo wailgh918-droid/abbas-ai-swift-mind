@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import {
   Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target,
   LogOut, User, MessageSquarePlus, ChevronLeft, ChevronRight,
+  Crosshair, FlaskConical, Calculator,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import WolfLogo from "./WolfLogo";
 
-type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | null;
+type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | "hunt" | "mathAnalyzer" | "gradePredictor" | null;
 
 interface AppSidebarProps {
   isDark: boolean;
@@ -40,6 +41,9 @@ const AppSidebar = ({ isDark, onToggleDark, onOpenModal, onNewChat }: AppSidebar
   }, [user]);
 
   const tools = [
+    { key: "hunt" as const, icon: Crosshair, label: "المطاردة" },
+    { key: "mathAnalyzer" as const, icon: FlaskConical, label: "المختبر" },
+    { key: "gradePredictor" as const, icon: Calculator, label: "توقع المعدل" },
     { key: "turbo" as const, icon: Zap, label: "التوربو" },
     { key: "ocr" as const, icon: Camera, label: "الماسح" },
     { key: "image" as const, icon: Palette, label: "الصور" },
