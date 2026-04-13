@@ -12,12 +12,15 @@ import ImageGenerator from "@/components/ImageGenerator";
 import PackRanks from "@/components/PackRanks";
 import StrategicPlanner from "@/components/StrategicPlanner";
 import WolfVault from "@/components/WolfVault";
+import TheHunt from "@/components/TheHunt";
+import MathAnalyzer from "@/components/MathAnalyzer";
+import GradePredictor from "@/components/GradePredictor";
 import AppSidebar from "@/components/AppSidebar";
 import { streamChat } from "@/lib/streamChat";
 import { useConversations } from "@/hooks/useConversations";
 import { useRanks } from "@/hooks/useRanks";
 
-type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | null;
+type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | "hunt" | "mathAnalyzer" | "gradePredictor" | null;
 
 const Index = () => {
   const {
@@ -179,6 +182,14 @@ const Index = () => {
         />
       )}
       {activeModal === "vault" && <WolfVault onClose={() => setActiveModal(null)} />}
+      {activeModal === "hunt" && <TheHunt onClose={() => setActiveModal(null)} />}
+      {activeModal === "mathAnalyzer" && (
+        <MathAnalyzer
+          onClose={() => setActiveModal(null)}
+          onSendToChat={(text) => { setActiveModal(null); handleSend(text); }}
+        />
+      )}
+      {activeModal === "gradePredictor" && <GradePredictor onClose={() => setActiveModal(null)} />}
     </div>
   );
 };
