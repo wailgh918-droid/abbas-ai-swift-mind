@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target } from "lucide-react";
 import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
+import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
 import ChatMessage, { type Message } from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import QuickActions from "@/components/QuickActions";
@@ -9,33 +11,18 @@ import TurboMode from "@/components/TurboMode";
 import PredictiveActions from "@/components/PredictiveActions";
 import OCRScanner from "@/components/OCRScanner";
 import ImageGenerator from "@/components/ImageGenerator";
-import PackRanks from "@/components/PackRanks";
+import PackRanks, { addPoints } from "@/components/PackRanks";
 import StrategicPlanner from "@/components/StrategicPlanner";
 import WolfVault from "@/components/WolfVault";
-import TheHunt from "@/components/TheHunt";
-import MathAnalyzer from "@/components/MathAnalyzer";
-import GradePredictor from "@/components/GradePredictor";
-import VoiceTutor from "@/components/VoiceTutor";
-import AppSidebar from "@/components/AppSidebar";
 import { streamChat } from "@/lib/streamChat";
-import { useConversations } from "@/hooks/useConversations";
-import { useRanks } from "@/hooks/useRanks";
 
-type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | "hunt" | "mathAnalyzer" | "gradePredictor" | "voiceTutor" | null;
+type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | null;
 
 const Index = () => {
-  const {
-    conversations,
-    activeConvId,
-    setActiveConvId,
-    messages,
-    setMessages,
-    createConversation,
-    saveMessage,
-    handleNewChat,
-  } = useConversations();
-  const { rankData, addPoints } = useRanks();
-
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [quickActionPrompt, setQuickActionPrompt] = useState("");
   const [isDark, setIsDark] = useState(true);
@@ -61,16 +48,9 @@ const Index = () => {
     setQuickActionPrompt("");
     addPoints("message");
 
-    let convId = activeConvId;
-    if (!convId) {
-      const title = text.slice(0, 40) + (text.length > 40 ? "..." : "");
-      convId = await createConversation(title);
-    }
-
-    if (convId) saveMessage(convId, "user", text);
-
     const assistantId = (Date.now() + 1).toString();
     let assistantContent = "";
+
     const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }));
 
     try {
@@ -89,7 +69,15 @@ const Index = () => {
         },
         onDone: () => {
           setIsTyping(false);
-          if (convId && assistantContent) saveMessage(convId, "assistant", assistantContent);
+          if (!activeConvId && assistantContent) {
+            const newConv: Conversation = {
+              id: assistantId,
+              title: text.slice(0, 40) + (text.length > 40 ? "..." : ""),
+              date: "اليوم",
+            };
+            setConversations((prev) => [newConv, ...prev]);
+            setActiveConvId(assistantId);
+          }
         },
         onError: (error) => {
           setIsTyping(false);
@@ -101,22 +89,71 @@ const Index = () => {
       toast.error("فشل الاتصال بالخادم. حاول مرة أخرى.");
       console.error(e);
     }
-  }, [messages, activeConvId, createConversation, saveMessage, addPoints, setMessages]);
+  }, [messages, activeConvId]);
+
+  const handleNewChat = useCallback(() => {
+    setActiveConvId(null);
+    setMessages([]);
+    setQuickActionPrompt("");
+  }, []);
 
   const hasMessages = messages.length > 0;
 
+  const toolButtons = [
+    { key: "turbo" as const, icon: Zap, label: "التوربو" },
+    { key: "ocr" as const, icon: Camera, label: "الماسح" },
+    { key: "image" as const, icon: Palette, label: "الصور" },
+    { key: "planner" as const, icon: Target, label: "المخطط" },
+    { key: "vault" as const, icon: Shield, label: "الخزنة" },
+    { key: "ranks" as const, icon: Trophy, label: "الرتب" },
+  ];
+
   return (
-    <div className="flex h-screen overflow-hidden" dir="rtl">
-      {/* Sidebar */}
-      <AppSidebar
-        isDark={isDark}
-        onToggleDark={() => setIsDark(!isDark)}
-        onOpenModal={setActiveModal}
-        onNewChat={handleNewChat}
+    <div className="flex h-screen overflow-hidden">
+      <ChatSidebar
+        conversations={conversations}
+        activeId={activeConvId}
+        onSelect={setActiveConvId}
+        onNew={handleNewChat}
+        open={sidebarOpen}
+        onToggle={() => setSidebarOpen(false)}
       />
 
-      {/* Main chat area */}
       <div className={`flex-1 flex flex-col min-w-0 gradient-bg ${isDark ? "wolf-eyes-effect" : ""}`}>
+        {/* Header */}
+        <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/60 backdrop-blur-md relative z-10">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <WolfLogo size={28} />
+            <h1 className="font-semibold text-foreground">عباس</h1>
+          </div>
+          <div className="flex items-center gap-1">
+            {toolButtons.map((btn) => (
+              <button
+                key={btn.key}
+                onClick={() => setActiveModal(btn.key)}
+                className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+                title={btn.label}
+              >
+                <btn.icon className="w-4 h-4" />
+              </button>
+            ))}
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+              title={isDark ? "الوضع الفاتح" : "وضع الذئب الليلي"}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
+        </header>
+
+        {/* Chat area */}
         <div className="flex-1 overflow-y-auto relative z-10">
           {!hasMessages ? (
             <div className="flex flex-col items-center justify-center h-full px-4 animate-fade-in">
@@ -130,7 +167,7 @@ const Index = () => {
               <QuickActions onSelect={setQuickActionPrompt} />
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto px-4 py-6 space-y-6" dir="auto">
+            <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
               {messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}
@@ -149,12 +186,16 @@ const Index = () => {
           )}
         </div>
 
-        {/* Input */}
-        <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full space-y-2 relative z-10" dir="rtl">
+        {/* Predictive Actions + Input */}
+        <div className="px-4 pb-4 pt-2 max-w-3xl mx-auto w-full space-y-2 relative z-10">
           {hasMessages && !isTyping && (
             <PredictiveActions messages={messages} onSelect={(p) => handleSend(p)} />
           )}
-          <ChatInput onSend={handleSend} disabled={isTyping} initialValue={quickActionPrompt} />
+          <ChatInput
+            onSend={handleSend}
+            disabled={isTyping}
+            initialValue={quickActionPrompt}
+          />
           <p className="text-xs text-muted-foreground text-center mt-2">
             عباس قد يُخطئ أحياناً. تحقق من المعلومات المهمة.
           </p>
@@ -174,24 +215,21 @@ const Index = () => {
           onClose={() => setActiveModal(null)}
         />
       )}
-      {activeModal === "image" && <ImageGenerator onClose={() => setActiveModal(null)} />}
-      {activeModal === "ranks" && <PackRanks rankData={rankData} onClose={() => setActiveModal(null)} />}
+      {activeModal === "image" && (
+        <ImageGenerator onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === "ranks" && (
+        <PackRanks onClose={() => setActiveModal(null)} />
+      )}
       {activeModal === "planner" && (
         <StrategicPlanner
           onClose={() => setActiveModal(null)}
           onSendToChat={(text) => { setActiveModal(null); handleSend(text); }}
         />
       )}
-      {activeModal === "vault" && <WolfVault onClose={() => setActiveModal(null)} />}
-      {activeModal === "hunt" && <TheHunt onClose={() => setActiveModal(null)} />}
-      {activeModal === "mathAnalyzer" && (
-        <MathAnalyzer
-          onClose={() => setActiveModal(null)}
-          onSendToChat={(text) => { setActiveModal(null); handleSend(text); }}
-        />
+      {activeModal === "vault" && (
+        <WolfVault onClose={() => setActiveModal(null)} />
       )}
-      {activeModal === "gradePredictor" && <GradePredictor onClose={() => setActiveModal(null)} />}
-      {activeModal === "voiceTutor" && <VoiceTutor onClose={() => setActiveModal(null)} />}
     </div>
   );
 };
