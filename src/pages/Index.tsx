@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target } from "lucide-react";
+import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target, Settings } from "lucide-react";
 import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
 import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
@@ -14,9 +14,10 @@ import ImageGenerator from "@/components/ImageGenerator";
 import PackRanks, { addPoints } from "@/components/PackRanks";
 import StrategicPlanner from "@/components/StrategicPlanner";
 import WolfVault from "@/components/WolfVault";
+import AISettings from "@/components/AISettings";
 import { streamChat } from "@/lib/streamChat";
 
-type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | null;
+type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | "settings" | null;
 
 const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -150,6 +151,13 @@ const Index = () => {
             >
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
+            <button
+              onClick={() => setActiveModal("settings")}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+              title="الإعدادات"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
           </div>
         </header>
 
@@ -229,6 +237,9 @@ const Index = () => {
       )}
       {activeModal === "vault" && (
         <WolfVault onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === "settings" && (
+        <AISettings onClose={() => setActiveModal(null)} />
       )}
     </div>
   );
