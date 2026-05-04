@@ -3,7 +3,7 @@ import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target, Settings
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
-import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
+import ChatSidebar from "@/components/ChatSidebar";
 import ChatMessage, { type Message } from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import QuickActions from "@/components/QuickActions";
