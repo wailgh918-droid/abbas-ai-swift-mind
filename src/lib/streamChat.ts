@@ -2,6 +2,28 @@ import type { Message } from "@/components/ChatMessage";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
+export type AIProvider = "lovable" | "gemini";
+
+export interface AISettings {
+  provider: AIProvider;
+  geminiApiKey?: string;
+  model?: string;
+}
+
+const SETTINGS_KEY = "abbas_ai_settings";
+
+export function getAISettings(): AISettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return { provider: "lovable", model: "google/gemini-3-flash-preview" };
+}
+
+export function saveAISettings(s: AISettings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
 export async function streamChat({
   messages,
   onDelta,
@@ -13,13 +35,25 @@ export async function streamChat({
   onDone: () => void;
   onError: (error: string) => void;
 }) {
+  const settings = getAISettings();
+
+  if (settings.provider === "gemini" && (!settings.geminiApiKey || settings.geminiApiKey.length < 10)) {
+    onError("مفتاح Gemini مفقود. افتح الإعدادات وأضف المفتاح.");
+    return;
+  }
+
   const resp = await fetch(CHAT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({
+      messages,
+      provider: settings.provider,
+      geminiApiKey: settings.provider === "gemini" ? settings.geminiApiKey : undefined,
+      model: settings.model,
+    }),
   });
 
   if (!resp.ok) {
