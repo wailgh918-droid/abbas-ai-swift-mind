@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target, Settings } from "lucide-react";
+import { Menu, Sun, Moon, Zap, Camera, Palette, Trophy, Shield, Target, Settings, LogOut, Loader2 } from "lucide-react";
+import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import WolfLogo from "@/components/WolfLogo";
 import ChatSidebar, { type Conversation } from "@/components/ChatSidebar";
@@ -16,12 +17,15 @@ import StrategicPlanner from "@/components/StrategicPlanner";
 import WolfVault from "@/components/WolfVault";
 import AISettings from "@/components/AISettings";
 import { streamChat } from "@/lib/streamChat";
+import { useAuth } from "@/contexts/AuthContext";
+import { useChatHistory } from "@/hooks/useChatHistory";
 
 type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | "settings" | null;
 
 const Index = () => {
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { conversations, refreshList, loadMessages, createConversation, saveMessage } = useChatHistory();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -42,12 +46,28 @@ const Index = () => {
     scrollToBottom();
   }, [messages, isTyping, scrollToBottom]);
 
+  const handleSelectConversation = useCallback(async (id: string) => {
+    setActiveConvId(id);
+    setSidebarOpen(false);
+    const msgs = await loadMessages(id);
+    setMessages(msgs);
+  }, [loadMessages]);
+
   const handleSend = useCallback(async (text: string) => {
+    if (!user) return;
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
     setQuickActionPrompt("");
     addPoints("message");
+
+    // Ensure we have a conversation
+    let convId = activeConvId;
+    if (!convId) {
+      convId = await createConversation(text);
+      if (convId) setActiveConvId(convId);
+    }
+    if (convId) saveMessage(convId, "user", text);
 
     const assistantId = (Date.now() + 1).toString();
     let assistantContent = "";
@@ -70,14 +90,9 @@ const Index = () => {
         },
         onDone: () => {
           setIsTyping(false);
-          if (!activeConvId && assistantContent) {
-            const newConv: Conversation = {
-              id: assistantId,
-              title: text.slice(0, 40) + (text.length > 40 ? "..." : ""),
-              date: "اليوم",
-            };
-            setConversations((prev) => [newConv, ...prev]);
-            setActiveConvId(assistantId);
+          if (convId && assistantContent) {
+            saveMessage(convId, "assistant", assistantContent);
+            refreshList();
           }
         },
         onError: (error) => {
@@ -90,13 +105,19 @@ const Index = () => {
       toast.error("فشل الاتصال بالخادم. حاول مرة أخرى.");
       console.error(e);
     }
-  }, [messages, activeConvId]);
+  }, [messages, activeConvId, user, createConversation, saveMessage, refreshList]);
 
   const handleNewChat = useCallback(() => {
     setActiveConvId(null);
     setMessages([]);
     setQuickActionPrompt("");
+    setSidebarOpen(false);
   }, []);
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
+  }
+  if (!user) return <Navigate to="/auth" replace />;
 
   const hasMessages = messages.length > 0;
 
@@ -114,7 +135,7 @@ const Index = () => {
       <ChatSidebar
         conversations={conversations}
         activeId={activeConvId}
-        onSelect={setActiveConvId}
+        onSelect={handleSelectConversation}
         onNew={handleNewChat}
         open={sidebarOpen}
         onToggle={() => setSidebarOpen(false)}
@@ -157,6 +178,13 @@ const Index = () => {
               title="الإعدادات"
             >
               <Settings className="w-4 h-4" />
+            </button>
+            <button
+              onClick={signOut}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+              title="تسجيل الخروج"
+            >
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </header>
