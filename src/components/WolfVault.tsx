@@ -48,7 +48,7 @@ async function encryptData(data: string, key: CryptoKey): Promise<string> {
   const combined = new Uint8Array(iv.length + ct.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(ct), iv.length);
-  return b64encode(combined.buffer);
+  return b64encode(combined.buffer.slice(0) as ArrayBuffer);
 }
 
 async function decryptData(encoded: string, key: CryptoKey): Promise<string> {
