@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/contexts/AuthContext";
 import WolfLogo from "@/components/WolfLogo";
 import { Loader2 } from "lucide-react";
@@ -43,11 +44,16 @@ const Auth = () => {
 
   const handleGoogle = async () => {
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/` },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
     });
-    if (error) { toast.error(error.message); setBusy(false); }
+    if (result.error) {
+      toast.error(result.error.message || "فشل تسجيل الدخول عبر Google");
+      setBusy(false);
+      return;
+    }
+    if (result.redirected) return;
+    navigate("/");
   };
 
   return (
