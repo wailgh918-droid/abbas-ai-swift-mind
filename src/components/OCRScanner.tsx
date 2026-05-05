@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Camera, X, Upload, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OCRScannerProps {
   onResult: (text: string) => void;
@@ -19,11 +20,14 @@ const OCRScanner = ({ onResult, onClose }: OCRScannerProps) => {
     setProcessing(true);
     setPreview(dataUrl);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("يجب تسجيل الدخول");
       const resp = await fetch(OCR_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ image: dataUrl }),
       });
