@@ -24,7 +24,7 @@ function b64decode(s: string): Uint8Array {
   return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 }
 
-async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+async function deriveKey(password: string, salt: BufferSource): Promise<CryptoKey> {
   const enc = new TextEncoder();
   const baseKey = await crypto.subtle.importKey(
     "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]
@@ -71,13 +71,14 @@ const WolfVault = ({ onClose }: WolfVaultProps) => {
   const unlock = useCallback(async () => {
     if (!password) return;
     try {
-      let salt: Uint8Array;
+      let salt: ArrayBuffer;
       const storedSalt = localStorage.getItem(VAULT_SALT_KEY);
       if (isNew || !storedSalt) {
-        salt = crypto.getRandomValues(new Uint8Array(16));
-        localStorage.setItem(VAULT_SALT_KEY, b64encode(salt.buffer));
+        const saltArr = crypto.getRandomValues(new Uint8Array(16));
+        salt = saltArr.buffer.slice(0) as ArrayBuffer;
+        localStorage.setItem(VAULT_SALT_KEY, b64encode(salt));
       } else {
-        salt = b64decode(storedSalt);
+        salt = b64decode(storedSalt).buffer.slice(0) as ArrayBuffer;
       }
       const key = await deriveKey(password, salt);
       const raw = localStorage.getItem(VAULT_KEY);
