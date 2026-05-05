@@ -96,19 +96,15 @@
   }
   .wolf-eyes-effect {
     position: relative;
-    overflow: hidden;
   }
   .wolf-eyes-effect::after {
     content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 200%;
-    height: 200%;
-    transform: translate(-50%, -50%);
+    position: fixed;
+    inset: 0;
     background: radial-gradient(ellipse at 30% 40%, hsl(var(--wolf-eyes, 40 100% 55%) / 0.06) 0%, transparent 40%),
                 radial-gradient(ellipse at 70% 40%, hsl(var(--wolf-eyes, 40 100% 55%) / 0.06) 0%, transparent 40%);
     pointer-events: none;
+    z-index: 0;
     animation: wolf-pulse 4s ease-in-out infinite;
   }
   @keyframes wolf-pulse {
