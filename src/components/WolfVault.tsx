@@ -14,67 +14,97 @@ interface VaultNote {
 }
 
 const VAULT_KEY = "abbas_vault";
-const VAULT_PASS_KEY = "abbas_vault_hash";
+const VAULT_SALT_KEY = "abbas_vault_salt";
+const PBKDF2_ITERATIONS = 150_000;
 
-function simpleHash(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0;
-  }
-  return hash.toString(36);
+function b64encode(buf: ArrayBuffer): string {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function b64decode(s: string): Uint8Array {
+  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 }
 
-function xorEncrypt(text: string, key: string): string {
-  return btoa(
-    Array.from(text)
-      .map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ key.charCodeAt(i % key.length)))
-      .join("")
+async function deriveKey(password: string, salt: BufferSource): Promise<CryptoKey> {
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey(
+    "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
   );
 }
 
-function xorDecrypt(encoded: string, key: string): string {
-  const decoded = atob(encoded);
-  return Array.from(decoded)
-    .map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ key.charCodeAt(i % key.length)))
-    .join("");
+async function encryptData(data: string, key: CryptoKey): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(data)
+  );
+  const combined = new Uint8Array(iv.length + ct.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ct), iv.length);
+  return b64encode(combined.buffer.slice(0) as ArrayBuffer);
+}
+
+async function decryptData(encoded: string, key: CryptoKey): Promise<string> {
+  const combined = b64decode(encoded);
+  const iv = combined.slice(0, 12);
+  const ct = combined.slice(12);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+  return new TextDecoder().decode(pt);
 }
 
 const WolfVault = ({ onClose }: WolfVaultProps) => {
   const [unlocked, setUnlocked] = useState(false);
   const [password, setPassword] = useState("");
-  const [isNew, setIsNew] = useState(!localStorage.getItem(VAULT_PASS_KEY));
+  const [isNew, setIsNew] = useState(!localStorage.getItem(VAULT_SALT_KEY));
   const [notes, setNotes] = useState<VaultNote[]>([]);
   const [editingNote, setEditingNote] = useState<VaultNote | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
 
-  const unlock = useCallback(() => {
+  const unlock = useCallback(async () => {
     if (!password) return;
-    const stored = localStorage.getItem(VAULT_PASS_KEY);
-    if (isNew) {
-      localStorage.setItem(VAULT_PASS_KEY, simpleHash(password));
-      setUnlocked(true);
-      toast.success("تم إنشاء الخزنة!");
-    } else if (stored === simpleHash(password)) {
-      // Load notes
+    try {
+      let salt: ArrayBuffer;
+      const storedSalt = localStorage.getItem(VAULT_SALT_KEY);
+      if (isNew || !storedSalt) {
+        const saltArr = crypto.getRandomValues(new Uint8Array(16));
+        salt = saltArr.buffer.slice(0) as ArrayBuffer;
+        localStorage.setItem(VAULT_SALT_KEY, b64encode(salt));
+      } else {
+        salt = b64decode(storedSalt).buffer.slice(0) as ArrayBuffer;
+      }
+      const key = await deriveKey(password, salt);
       const raw = localStorage.getItem(VAULT_KEY);
       if (raw) {
         try {
-          const decrypted = xorDecrypt(raw, password);
+          const decrypted = await decryptData(raw, key);
           setNotes(JSON.parse(decrypted));
-        } catch { setNotes([]); }
+        } catch {
+          toast.error("كلمة المرور خاطئة!");
+          return;
+        }
       }
+      setCryptoKey(key);
       setUnlocked(true);
-    } else {
-      toast.error("كلمة المرور خاطئة!");
+      if (isNew) toast.success("تم إنشاء الخزنة!");
+    } catch (e) {
+      toast.error("فشل فتح الخزنة");
     }
   }, [password, isNew]);
 
-  const save = useCallback((updatedNotes: VaultNote[]) => {
+  const save = useCallback(async (updatedNotes: VaultNote[]) => {
+    if (!cryptoKey) return;
     setNotes(updatedNotes);
-    localStorage.setItem(VAULT_KEY, xorEncrypt(JSON.stringify(updatedNotes), password));
-  }, [password]);
+    const encoded = await encryptData(JSON.stringify(updatedNotes), cryptoKey);
+    localStorage.setItem(VAULT_KEY, encoded);
+  }, [cryptoKey]);
 
   const addNote = () => {
     const note: VaultNote = { id: Date.now().toString(), title: "", content: "", createdAt: Date.now() };

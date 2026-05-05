@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Palette, X, Loader2, Download, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ImageGeneratorProps {
   onClose: () => void;
@@ -18,11 +19,14 @@ const ImageGenerator = ({ onClose }: ImageGeneratorProps) => {
     setLoading(true);
     setImageUrl(null);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("يجب تسجيل الدخول");
       const resp = await fetch(IMG_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ prompt: prompt.trim() }),
       });
