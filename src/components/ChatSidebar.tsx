@@ -1,4 +1,5 @@
-import { Plus, MessageSquare, X } from "lucide-react";
+import { Plus, MessageSquare, X, Trash2, Trash } from "lucide-react";
+import { useState } from "react";
 import WolfLogo from "./WolfLogo";
 
 export interface Conversation {
@@ -14,9 +15,13 @@ interface ChatSidebarProps {
   onNew: () => void;
   open: boolean;
   onToggle: () => void;
+  onDelete?: (id: string) => void;
+  onDeleteAll?: () => void;
 }
 
-const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onToggle }: ChatSidebarProps) => {
+const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onToggle, onDelete, onDeleteAll }: ChatSidebarProps) => {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [confirmAll, setConfirmAll] = useState(false);
   const grouped = conversations.reduce<Record<string, Conversation[]>>((acc, conv) => {
     const key = conv.date;
     if (!acc[key]) acc[key] = [];
@@ -51,7 +56,7 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onToggle 
         </div>
 
         {/* New chat */}
-        <div className="px-3 py-3">
+        <div className="px-3 py-3 space-y-2">
           <button
             onClick={onNew}
             className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm font-medium transition-all hover:bg-secondary text-foreground"
@@ -59,6 +64,32 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onToggle 
             <Plus className="w-4 h-4 text-primary" />
             محادثة جديدة
           </button>
+          {conversations.length > 0 && onDeleteAll && (
+            confirmAll ? (
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => { onDeleteAll(); setConfirmAll(false); }}
+                  className="flex-1 px-2 py-2 rounded-lg bg-destructive/90 text-destructive-foreground text-xs font-medium hover:bg-destructive"
+                >
+                  أكيد، احذف الكل
+                </button>
+                <button
+                  onClick={() => setConfirmAll(false)}
+                  className="flex-1 px-2 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:bg-secondary"
+                >
+                  تراجع
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmAll(true)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash className="w-3.5 h-3.5" />
+                حذف كل المحادثات
+              </button>
+            )
+          )}
         </div>
 
         {/* Conversations */}
@@ -68,14 +99,44 @@ const ChatSidebar = ({ conversations, activeId, onSelect, onNew, open, onToggle 
               <p className="text-xs text-muted-foreground px-3 mb-1.5 font-medium">{date}</p>
               <div className="space-y-0.5">
                 {convs.map((conv) => (
-                  <button
+                  <div
                     key={conv.id}
-                    onClick={() => onSelect(conv.id)}
-                    className={`sidebar-item w-full text-right ${activeId === conv.id ? "sidebar-item-active" : ""}`}
+                    className={`group flex items-center gap-1 rounded-lg ${activeId === conv.id ? "bg-secondary" : "hover:bg-secondary/60"}`}
                   >
-                    <MessageSquare className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{conv.title}</span>
-                  </button>
+                    <button
+                      onClick={() => onSelect(conv.id)}
+                      className="flex-1 flex items-center gap-2 px-3 py-2 text-right text-sm text-foreground min-w-0"
+                    >
+                      <MessageSquare className="w-4 h-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{conv.title}</span>
+                    </button>
+                    {onDelete && (
+                      confirmId === conv.id ? (
+                        <div className="flex gap-0.5 px-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(conv.id); setConfirmId(null); }}
+                            className="px-2 py-1 rounded text-[10px] bg-destructive text-destructive-foreground"
+                          >
+                            حذف
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmId(null); }}
+                            className="px-2 py-1 rounded text-[10px] text-muted-foreground hover:bg-background"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmId(conv.id); }}
+                          className="p-2 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                          title="حذف"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
