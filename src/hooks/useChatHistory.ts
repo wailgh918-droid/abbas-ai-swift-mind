@@ -66,5 +66,19 @@ export function useChatHistory() {
     });
   }, [user]);
 
-  return { conversations, loadingList, refreshList, loadMessages, createConversation, saveMessage };
+  const deleteConversation = useCallback(async (conversationId: string) => {
+    if (!user) return;
+    await supabase.from("messages").delete().eq("conversation_id", conversationId);
+    await supabase.from("conversations").delete().eq("id", conversationId);
+    refreshList();
+  }, [user, refreshList]);
+
+  const deleteAllConversations = useCallback(async () => {
+    if (!user) return;
+    await supabase.from("messages").delete().eq("user_id", user.id);
+    await supabase.from("conversations").delete().eq("user_id", user.id);
+    refreshList();
+  }, [user, refreshList]);
+
+  return { conversations, loadingList, refreshList, loadMessages, createConversation, saveMessage, deleteConversation, deleteAllConversations };
 }

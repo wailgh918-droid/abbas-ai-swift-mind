@@ -24,7 +24,7 @@ type ModalType = "turbo" | "ocr" | "image" | "ranks" | "planner" | "vault" | "se
 
 const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
-  const { conversations, refreshList, loadMessages, createConversation, saveMessage } = useChatHistory();
+  const { conversations, refreshList, loadMessages, createConversation, saveMessage, deleteConversation, deleteAllConversations } = useChatHistory();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -139,6 +139,16 @@ const Index = () => {
         onNew={handleNewChat}
         open={sidebarOpen}
         onToggle={() => setSidebarOpen(false)}
+        onDelete={async (id) => {
+          await deleteConversation(id);
+          if (activeConvId === id) handleNewChat();
+          toast.success("تم حذف المحادثة");
+        }}
+        onDeleteAll={async () => {
+          await deleteAllConversations();
+          handleNewChat();
+          toast.success("تم مسح كل المحادثات");
+        }}
       />
 
       <div className={`flex-1 flex flex-col min-w-0 gradient-bg ${isDark ? "wolf-eyes-effect" : ""}`}>
