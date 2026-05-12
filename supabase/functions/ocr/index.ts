@@ -25,8 +25,22 @@ serve(async (req) => {
     }
 
     const { image } = await req.json();
-    if (!image) {
+    if (!image || typeof image !== "string") {
       return new Response(JSON.stringify({ error: "لم يتم إرسال صورة" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Limit ~5MB base64 (data URL) payload
+    const MAX_IMAGE_CHARS = 7_500_000;
+    if (image.length > MAX_IMAGE_CHARS) {
+      return new Response(JSON.stringify({ error: "حجم الصورة كبير جداً (الحد 5MB)" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!/^data:image\/(png|jpe?g|webp|gif);base64,/.test(image)) {
+      return new Response(JSON.stringify({ error: "صيغة الصورة غير مدعومة" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
