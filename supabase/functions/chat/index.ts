@@ -30,6 +30,57 @@ serve(async (req) => {
     }
 
     const { messages, provider, geminiApiKey, model } = await req.json();
+
+    // Input validation
+    const ALLOWED_MODELS = new Set([
+      "google/gemini-3-flash-preview",
+      "google/gemini-2.5-flash",
+      "google/gemini-2.5-flash-lite",
+      "google/gemini-2.5-pro",
+      "google/gemini-3.1-pro-preview",
+      "google/gemini-3-flash-preview",
+    ]);
+    const MAX_MESSAGES = 50;
+    const MAX_CONTENT_CHARS = 8000;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response(JSON.stringify({ error: "messages مطلوبة" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (messages.length > MAX_MESSAGES) {
+      return new Response(JSON.stringify({ error: `الحد الأقصى ${MAX_MESSAGES} رسالة` }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    for (const m of messages) {
+      if (!m || (m.role !== "user" && m.role !== "assistant")) {
+        return new Response(JSON.stringify({ error: "role غير صالح" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (typeof m.content !== "string" || m.content.length === 0) {
+        return new Response(JSON.stringify({ error: "محتوى الرسالة غير صالح" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (m.content.length > MAX_CONTENT_CHARS) {
+        return new Response(JSON.stringify({ error: `الحد الأقصى ${MAX_CONTENT_CHARS} حرف لكل رسالة` }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+    if (model !== undefined && (typeof model !== "string" || !ALLOWED_MODELS.has(model))) {
+      return new Response(JSON.stringify({ error: "النموذج غير مدعوم" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (geminiApiKey !== undefined && (typeof geminiApiKey !== "string" || geminiApiKey.length < 20 || geminiApiKey.length > 200 || !/^[A-Za-z0-9_\-]+$/.test(geminiApiKey))) {
+      return new Response(JSON.stringify({ error: "صيغة مفتاح Gemini غير صحيحة" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const useGemini = provider === "gemini" && typeof geminiApiKey === "string" && geminiApiKey.length > 10;
 
     const selectedModel = model || "google/gemini-3-flash-preview";
